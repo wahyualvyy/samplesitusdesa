@@ -1,0 +1,301 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = "file:./dev.db"
+}
+
+enum Role {
+  SUPER_ADMIN
+  ADMIN_DESA
+  OPERATOR
+  EDITOR
+  PPID_OFFICER
+  SERVICE_OFFICER
+}
+
+model User {
+  id        String   @id @default(cuid())
+  name      String
+  email     String   @unique
+  password  String
+  role      Role     @default(OPERATOR)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  news      News[]
+}
+
+model NewsCategory {
+  id        String   @id @default(cuid())
+  name      String   @unique
+  slug      String   @unique
+  news      News[]
+}
+
+model News {
+  id          String        @id @default(cuid())
+  title       String
+  slug        String        @unique
+  excerpt     String?
+  content     String
+  image       String?
+  isPublished Boolean       @default(false)
+  views       Int           @default(0)
+  authorId    String
+  author      User          @relation(fields: [authorId], references: [id])
+  categoryId  String
+  category    NewsCategory  @relation(fields: [categoryId], references: [id])
+  createdAt   DateTime      @default(now())
+  updatedAt   DateTime      @updatedAt
+}
+
+model Announcement {
+  id          String   @id @default(cuid())
+  title       String
+  content     String
+  status      String   // Aktif, Selesai, Penting, Pelayanan, Program Desa
+  date        DateTime
+  createdAt   DateTime @default(now())
+}
+
+model Complaint {
+  id            String                @id @default(cuid())
+  trackingId    String                @unique
+  name          String
+  nik           String?
+  email         String?
+  phone         String
+  category      String
+  title         String
+  content       String
+  location      String?
+  status        String                @default("DITERIMA") // DITERIMA, DIPROSES, SELESAI, DITOLAK
+  adminNote     String?
+  createdAt     DateTime              @default(now())
+  updatedAt     DateTime              @updatedAt
+  attachments   ComplaintAttachment[]
+  timelines     ComplaintTimeline[]
+}
+
+model ComplaintAttachment {
+  id          String    @id @default(cuid())
+  complaintId String
+  complaint   Complaint @relation(fields: [complaintId], references: [id], onDelete: Cascade)
+  fileUrl     String
+  fileType    String
+}
+
+model ComplaintTimeline {
+  id          String    @id @default(cuid())
+  complaintId String
+  complaint   Complaint @relation(fields: [complaintId], references: [id], onDelete: Cascade)
+  status      String
+  notes       String?
+  createdAt   DateTime  @default(now())
+}
+
+model APBDes {
+  id          String           @id @default(cuid())
+  year        Int              @unique
+  pendapatan  Float
+  belanja     Float
+  pembiayaan  Float
+  categories  APBDesCategory[]
+}
+
+model APBDesCategory {
+  id        String @id @default(cuid())
+  apbDesId  String
+  apbDes    APBDes @relation(fields: [apbDesId], references: [id], onDelete: Cascade)
+  type      String // PENDAPATAN, BELANJA, PEMBIAYAAN
+  name      String
+  amount    Float
+  realisasi Float  @default(0)
+  progress  Float? // 0-100 (computed or manual)
+}
+
+model VillageOfficial {
+  id          String  @id @default(cuid())
+  name        String
+  position    String
+  description String?
+  image       String?
+  order       Int     @default(0)
+  type        String  @default("PEMDES") // PEMDES, BPD
+}
+
+// === CMS: Layanan Desa (menggantikan array hardcode) ===
+model VillageService {
+  id          String  @id @default(cuid())
+  title       String
+  description String
+  href        String
+  icon        String  @default("LayoutGrid")   // nama icon lucide-react
+  color       String  @default("bg-blue-50 text-blue-600 border-blue-100")
+  isVisible   Boolean @default(true)
+  order       Int     @default(0)
+}
+
+// === CMS: Section tiap halaman bisa dikontrol dari Admin ===
+model PageSection {
+  id        String   @id @default(cuid())
+  page      String   // "home", "profil", "layanan", dll
+  section   String   // "cta", "gallery-heading", "overview-heading", dll
+  isVisible Boolean  @default(true)
+  order     Int      @default(0)
+  content   String   @default("{}") // JSON blob
+  updatedAt DateTime @updatedAt
+
+  @@unique([page, section])
+}
+
+model UMKM {
+  id          String    @id @default(cuid())
+  name        String
+  ownerName   String
+  category    String
+  description String?
+  address     String?
+  phone       String?
+  image       String?
+  products    Product[]
+}
+
+model Product {
+  id          String  @id @default(cuid())
+  umkmId      String
+  umkm        UMKM    @relation(fields: [umkmId], references: [id], onDelete: Cascade)
+  name        String
+  price       Float?
+  description String?
+  image       String?
+}
+
+model Tourism {
+  id          String  @id @default(cuid())
+  name        String
+  description String
+  location    String
+  latitude    Float?
+  longitude   Float?
+  image       String?
+  facilities  String?
+}
+
+model Document {
+  id          String   @id @default(cuid())
+  title       String
+  year        Int
+  category    String  // Peraturan Desa, SK Kades, Laporan, dll
+  fileUrl     String
+  fileSize    String
+  downloads   Int      @default(0)
+  createdAt   DateTime @default(now())
+}
+
+model PPIDDocument {
+  id          String   @id @default(cuid())
+  title       String
+  category    String  // Berkala, Serta Merta, Setiap Saat
+  year        Int
+  fileUrl     String
+  fileSize    String
+  createdAt   DateTime @default(now())
+}
+
+model GalleryImage {
+  id          String   @id @default(cuid())
+  title       String?
+  category    String   // Kegiatan, Pembangunan, Masyarakat, Pariwisata, Sosial, Pemerintahan
+  imageUrl    String
+  createdAt   DateTime @default(now())
+}
+
+model PopulationStatistic {
+  id                String @id @default(cuid())
+  year              Int    @unique
+  totalPenduduk     Int
+  lakiLaki          Int
+  perempuan         Int
+  kepalaKeluarga    Int
+  pendudukSementara Int
+  mutasi            Int
+}
+
+model SiteSetting {
+  id             String  @id @default("1")
+  siteName       String  @default("Desa Simoketawang")
+  tagline        String  @default("Pemerintah Desa")
+  address        String  @default("")
+  email          String  @default("")
+  phone          String  @default("")
+  postalCode     String  @default("")
+  officeHours    String  @default("")
+  heroTitle      String  @default("Selamat Datang di Desa Simoketawang")
+  heroSubtitle   String  @default("Portal informasi, transparansi, pelayanan publik, dan potensi desa.")
+  heroBackground String  @default("https://picsum.photos/seed/simoketawang/1600/900")
+  kecamatan      String  @default("Wonoayu")
+  kabupaten      String  @default("Sidoarjo")
+  provinsi       String  @default("Jawa Timur")
+  jamPelayanan   String  @default("Senin-Kamis: 08.00-15.00|Jumat: 08.00-11.00")
+}
+
+model VillageProfile {
+  id            String @id @default("1")
+  profilSingkat String @default("")
+  luasWilayah   String @default("3.84")   // km²
+  jumlahDusun   String @default("4")
+  koordinatLat  String @default("-7.4478")
+  koordinatLng  String @default("112.6773")
+  sejarah       String @default("")
+  sejarahImage  String @default("")
+  visi          String @default("")
+  misi          String @default("")
+  timeline      String @default("[]")     // JSON string
+  bpdInfo       String @default("")
+}
+
+model DevelopmentProject {
+  id            String   @id @default(cuid())
+  name          String
+  location      String
+  budget        Float
+  fundingSource String
+  year          Int
+  progress      Int      @default(0) // 0-100
+  status        String   // Perencanaan, Berjalan, Selesai
+  image         String?
+  description   String?
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+}
+
+model Resident {
+  id         String   @id @default(cuid())
+  nik        String   @unique
+  nama       String
+  gender     String
+  dusun      String
+  status     String
+  usia       Int
+  agama      String   @default("Islam")
+  pendidikan String   @default("SMA/Sederajat")
+  pekerjaan  String   @default("Petani/Nelayan")
+  kkId       String?  // opsional, FK ke KartuKeluarga
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+}
+
+model DocumentTemplate {
+  id          String   @id @default(uuid())
+  name        String
+  slug        String   @unique
+  description String?
+  content     String
+  fileUrl     String?
+  isActive    Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
